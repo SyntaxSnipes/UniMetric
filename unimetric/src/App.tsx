@@ -149,7 +149,7 @@ function HomePage() {
   );
 }
 
-const PAGE_SIZE = 50;
+const PAGE_SIZE = 20;
 
 function RankingsPage() {
   const [searchInput, setSearchInput] = useState("");
