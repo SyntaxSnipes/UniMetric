@@ -8,17 +8,32 @@
     <link rel="manifest" href="/UniMetric/site.webmanifest" />
 
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>unimetric</title>
+    <title>UniMetric</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       href="https://fonts.googleapis.com/css2?family=Gelasio:ital,wght@0,400..700;1,400..700&display=swap"
       rel="stylesheet"
     />
-    <script type="module" crossorigin src="/UniMetric/assets/index-DpjTWlOT.js"></script>
-    <link rel="stylesheet" crossorigin href="/UniMetric/assets/index-Bfg56eOa.css">
+    <script type="module" crossorigin src="/UniMetric/assets/index-C06zCmle.js"></script>
+    <link rel="stylesheet" crossorigin href="/UniMetric/assets/index-BbbcwpEx.css">
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      // Restore path encoded by 404.html redirect.
+      (function (l) {
+        if (l.search[1] === '/') {
+          var decoded = l.search.slice(1).split('&').map(function (s) {
+            return s.replace(/~and~/g, '&');
+          });
+          window.history.replaceState(
+            null, null,
+            l.pathname.slice(0, -1) + decoded[0] +
+            (decoded[1] ? '?' + decoded[1] : '') + l.hash
+          );
+        }
+      }(window.location));
+    </script>
   </body>
 </html>
