@@ -6,7 +6,7 @@ import {
   type NavLinkRenderProps,
 } from "react-router-dom";
 import { RankingCard } from "./components/RankingCard";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 const defaultFactorWeights = {
   arScore: 0.3,
@@ -22,6 +22,16 @@ const defaultFactorWeights = {
 };
 
 type FactorKey = keyof typeof defaultFactorWeights;
+
+function calculateAggScore(datum: Record<string, unknown>, factors: FactorKey[]): number {
+  if (!factors.length) return 0;
+  const raw = factors.map((k) => defaultFactorWeights[k]);
+  const sum = raw.reduce((a, b) => a + b, 0);
+  return factors.reduce((score, key, i) => {
+    const v = datum[factorNames[key]];
+    return score + (raw[i] / sum) * (typeof v === "number" ? v : 0);
+  }, 0);
+}
 
 const factorNames: Record<FactorKey, string> = {
   arScore: "AR SCORE",
@@ -139,12 +149,16 @@ function HomePage() {
   );
 }
 
+const PAGE_SIZE = 50;
+
 function RankingsPage() {
+  const [searchInput, setSearchInput] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [factors, setFactors] = useState<FactorKey[]>([]);
   const [data, setData] = useState<Record<string, unknown>[]>([]);
   const [loading, setLoading] = useState(true);
   const [country, setCountry] = useState("Global");
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
   useEffect(() => {
     fetch(import.meta.env.BASE_URL + "26QS.json")
@@ -152,33 +166,32 @@ function RankingsPage() {
       .then((json) => { setData(json); setLoading(false); });
   }, []);
 
-  const countries = data.length
-    ? ["Global", ...Array.from(new Set(data.map((d) => (d["Country"] as Record<string, string>)["Territory"]))).sort()]
-    : ["Global"];
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setSearchTerm(searchInput);
+      setVisibleCount(PAGE_SIZE);
+    }, 200);
+    return () => clearTimeout(t);
+  }, [searchInput]);
 
-  function calculateAggregateScore(data: Record<string, unknown>) {
-    const factorWeights: Record<string, number> = {};
-    for (let i = 0; i < factors.length; i++) {
-      const factorKey = factors[i] as FactorKey;
-      factorWeights[factorKey] = defaultFactorWeights[factorKey];
-    }
-    const sumWeight = Object.values(factorWeights).reduce(
-      (accumulator, currentValue) => accumulator + currentValue,
-      0,
-    );
-    for (let i = 0; i < factors.length; i++) {
-      const factorKey = factors[i] as FactorKey;
-      factorWeights[factorKey] = (factorWeights[factorKey] ?? 0) / sumWeight;
-    }
-    let aggScore = 0;
-    for (let i = 0; i < factors.length; i++) {
-      const factorKey = factors[i] as FactorKey;
-      const scoreValue = data[factorNames[factors[i] as FactorKey]];
-      aggScore +=
-        (factorWeights[factorKey] ?? 0) * (typeof scoreValue === "number" ? scoreValue : 0);
-    }
-    return aggScore;
-  }
+  const countries = useMemo(() =>
+    data.length
+      ? ["Global", ...Array.from(new Set(data.map((d) => (d["Country"] as Record<string, string>)["Territory"]))).sort()]
+      : ["Global"],
+    [data]
+  );
+
+  const processed = useMemo((): Record<string, unknown>[] => {
+    if (!data.length) return [];
+    return [...data]
+      .map((datum) => ({ ...datum, "AGG SCORE": calculateAggScore(datum, factors) } as Record<string, unknown>))
+      .sort((a, b) => ((b["AGG SCORE"] as number) ?? 0) - ((a["AGG SCORE"] as number) ?? 0))
+      .map((datum, index) => ({ ...datum, "AGG RANK": index + 1 } as Record<string, unknown>))
+      .filter((item) =>
+        (country === "Global" || (item["Country"] as Record<string, string>)["Territory"] === country) &&
+        (item["Institution Name"] as string).toLowerCase().includes(searchTerm.toLowerCase())
+      );
+  }, [data, factors, country, searchTerm]);
 
   return (
     <section className="relative w-full max-w-6xl overflow-hidden rounded-3xl border border-white/10 bg-zinc-900/80 p-5 shadow-[0_28px_90px_-32px_rgba(0,0,0,0.6)] backdrop-blur-xl sm:rounded-[2.25rem] sm:p-8">
@@ -235,11 +248,8 @@ function RankingsPage() {
                     key={key}
                     type="button"
                     onClick={() => {
-                      if (factors.includes(key)) {
-                        setFactors(factors.filter((factor) => factor !== key));
-                      } else {
-                        setFactors([...factors, key]);
-                      }
+                      setFactors(factors.includes(key) ? factors.filter((f) => f !== key) : [...factors, key]);
+                      setVisibleCount(PAGE_SIZE);
                     }}
                     className={[
                       "inline-flex touch-manipulation items-center rounded-full border px-3 py-2 text-xs font-medium transition duration-150 sm:px-3.5 sm:py-1.5 sm:text-sm",
@@ -274,7 +284,7 @@ function RankingsPage() {
             <input
               type="search"
               placeholder="Search by university name"
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => setSearchInput(e.target.value)}
               className="w-full rounded-2xl border border-white/10 bg-white/8 px-4 py-3 text-slate-100 outline-none transition placeholder:text-slate-400 focus:border-white/25 focus:ring-2 focus:ring-white/10"
             />
           </label>
@@ -283,7 +293,7 @@ function RankingsPage() {
             <div className="relative">
               <select
                 value={country}
-                onChange={(e) => setCountry(e.target.value)}
+                onChange={(e) => { setCountry(e.target.value); setVisibleCount(PAGE_SIZE); }}
                 className="w-full appearance-none rounded-2xl border border-white/10 bg-zinc-900 pl-4 pr-10 py-3 text-slate-100 outline-none transition focus:border-white/25 focus:ring-2 focus:ring-white/10"
               >
                 {countries.map((c) => (
@@ -301,17 +311,10 @@ function RankingsPage() {
           {loading ? (
             <p className="py-8 text-center text-sm text-slate-400">Loading rankings…</p>
           ) : (
-            [...data]
-              .map((datum) => ({ ...datum, "AGG SCORE": calculateAggregateScore(datum) } as Record<string, unknown>))
-              .sort((a, b) => (b["AGG SCORE"] as number ?? 0) - (a["AGG SCORE"] as number ?? 0))
-              .map((datum, index) => ({ ...datum, "AGG RANK": index + 1 } as Record<string, unknown>))
-              .filter((item) =>
-                (country === "Global" || (item["Country"] as Record<string, string>)["Territory"] === country) &&
-                (item["Institution Name"] as string).toLowerCase().includes(searchTerm.toLowerCase()),
-              )
-              .map((ranking) => (
+            <>
+              {processed.slice(0, visibleCount).map((ranking) => (
                 <RankingCard
-                  key={`${ranking["Institution Name"]}`}
+                  key={ranking["Institution Name"] as string}
                   ranking={ranking["AGG RANK"] as number}
                   uniName={ranking["Institution Name"] as string}
                   uniTerritory={(ranking["Country"] as Record<string, string>)["Territory"]}
@@ -328,7 +331,17 @@ function RankingsPage() {
                   length={factors.length}
                   aggScore={Number(factors.length ? ranking["AGG SCORE"] : ranking["Overall SCORE"]) || 0}
                 />
-              ))
+              ))}
+              {visibleCount < processed.length && (
+                <button
+                  type="button"
+                  onClick={() => setVisibleCount((n) => n + PAGE_SIZE)}
+                  className="mt-2 w-full rounded-2xl border border-white/10 bg-white/5 py-3 text-sm font-medium text-slate-300 transition hover:bg-white/10 hover:text-white"
+                >
+                  Load more ({processed.length - visibleCount} remaining)
+                </button>
+              )}
+            </>
           )}
         </div>
       </div>

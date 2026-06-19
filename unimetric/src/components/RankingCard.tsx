@@ -48,7 +48,7 @@ export function RankingCard({
   const score = scores[activeTab];
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-white/10 bg-zinc-900/80 shadow-[0_8px_32px_-12px_rgba(0,0,0,0.6)] backdrop-blur-xl">
+    <div className="overflow-hidden rounded-2xl border border-white/10 bg-zinc-900 shadow-[0_8px_32px_-12px_rgba(0,0,0,0.6)]">
       {/* Header */}
       <div className="flex flex-wrap items-center gap-3 border-b border-white/8 px-4 py-4 sm:gap-4 sm:px-5">
         <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-cyan-400/25 bg-cyan-400/10 text-sm font-semibold text-cyan-200 sm:h-10 sm:w-10">
