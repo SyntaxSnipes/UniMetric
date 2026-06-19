@@ -147,7 +147,7 @@ function RankingsPage() {
   const [country, setCountry] = useState("Global");
 
   useEffect(() => {
-    fetch("/26QS.json")
+    fetch(import.meta.env.BASE_URL + "26QS.json")
       .then((res) => res.json())
       .then((json) => { setData(json); setLoading(false); });
   }, []);
