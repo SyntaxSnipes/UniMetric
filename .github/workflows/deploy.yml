@@ -5,17 +5,8 @@ on:
     branches: [main]
   workflow_dispatch:
 
-permissions:
-  contents: read
-  pages: write
-  id-token: write
-
-concurrency:
-  group: pages
-  cancel-in-progress: true
-
 jobs:
-  build:
+  deploy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -30,20 +21,8 @@ jobs:
         run: npm ci
         working-directory: unimetric
 
-      - name: Build
-        run: npm run build
+      - name: Build and deploy
+        run: npm run deploy
         working-directory: unimetric
-
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: unimetric/dist
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - id: deployment
-        uses: actions/deploy-pages@v4
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
