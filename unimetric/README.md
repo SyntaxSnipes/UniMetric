@@ -1,75 +1,45 @@
-# React + TypeScript + Vite
+# UniMetric
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A web app for exploring and re-ranking the **QS World University Rankings 2026** by the factors that actually matter to you.
 
-Currently, two official plugins are available:
+## What it does
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+UniMetric lets you pick any combination of QS ranking factors — academic reputation, research output, international diversity, and more — and instantly reranks all 1,501 universities based on your chosen weights. Filter by country or search by name to find exactly what you're looking for.
 
-## React Compiler
+**10 QS factors across 4 categories:**
 
-The React Compiler is enabled on this template. See [this documentation](https://react.dev/learn/react-compiler) for more information.
+| Category | Factors |
+|---|---|
+| Reputation | Academic Reputation, Employer Reputation |
+| Teaching & Outcomes | Faculty/Student Ratio, Employment Outcomes, Sustainability |
+| Research | Citations per Faculty, International Research Network |
+| International | International Faculty Ratio, International Student Ratio, International Student Diversity |
 
-Note: This will impact Vite dev & build performances.
+Factors are colour-coded by relevance: **amber** for undergraduate, **violet** for postgraduate.
 
-## Expanding the ESLint configuration
+## Stack
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+- React 19 + TypeScript
+- Vite 8 with React Compiler enabled
+- Tailwind CSS v4
+- React Router v7
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+## Getting started
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+cd unimetric
+npm install
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Other commands:
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm run build    # type-check + production build
+npm run preview  # serve the production build locally
+npm run lint     # ESLint
 ```
+
+## Data
+
+University data is loaded from `/public/26QS.json` at runtime. Each record contains the institution name, country/territory, and raw scores for all 10 QS factors. When no factors are selected, the official QS overall score is shown.
