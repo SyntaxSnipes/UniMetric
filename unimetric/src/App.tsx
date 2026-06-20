@@ -88,6 +88,33 @@ function App() {
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </main>
+
+        <footer className="pb-2 text-center text-xs text-slate-500">
+          <p>
+            Data sourced from{" "}
+            <a
+              href="https://www.topuniversities.com/world-university-rankings"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline underline-offset-2 transition hover:text-slate-300"
+            >
+              QS World University Rankings
+            </a>
+            . UniMetric is an independent personal project and is not affiliated
+            with or endorsed by QS. For informational purposes only.
+          </p>
+          <p className="mt-1">
+            Built by{" "}
+            <a
+              href="https://aayanpathan.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline underline-offset-2 transition hover:text-slate-300"
+            >
+              Mohammed Aayan Pathan (SyntaxSnipes)
+            </a>
+          </p>
+        </footer>
       </div>
     </div>
   );
