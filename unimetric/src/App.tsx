@@ -290,7 +290,10 @@ function RankingsPage() {
               <button
                 key={y}
                 type="button"
-                onClick={() => setYear(y)}
+                onClick={() => {
+                  setYear(y);
+                  if (y === 2027) setFactors((f) => f.filter((k) => k !== "isdScore"));
+                }}
                 className={[
                   "inline-flex touch-manipulation items-center rounded-full border px-3.5 py-2 text-xs font-medium transition duration-150 sm:px-4 sm:py-1.5 sm:text-sm",
                   year === y
@@ -399,7 +402,7 @@ function RankingsPage() {
                   {group}
                 </span>
                 <div className="flex flex-wrap justify-center gap-2 sm:contents">
-                  {groupFactors.map(({ key, label, audience }) => (
+                  {groupFactors.filter(({ onlyYear }) => !onlyYear || onlyYear === year).map(({ key, label, audience }) => (
                     <button
                       key={key}
                       type="button"
