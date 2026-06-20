@@ -377,6 +377,7 @@ function RankingsPage() {
                       key: "isdScore",
                       label: "Intl. Student Diversity",
                       audience: "pg",
+                      onlyYear: 2026,
                     },
                   ],
                 },
@@ -386,6 +387,7 @@ function RankingsPage() {
                   key: FactorKey;
                   label: string;
                   audience: "ug" | "pg";
+                  onlyYear?: number;
                 }[];
               }[]
             ).map(({ group, factors: groupFactors }) => (
