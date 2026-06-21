@@ -4,9 +4,13 @@ import {
   Route,
   Routes,
   type NavLinkRenderProps,
+  useSearchParams,
 } from "react-router-dom";
 import { RankingCard } from "./components/RankingCard";
-import { useEffect, useMemo, useState } from "react";
+import { UniversityModal } from "./components/UniversityModal";
+import { CompareModal, UNI_COLORS } from "./components/CompareModal";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 const defaultFactorWeights = {
   arScore: 0.3,
@@ -179,7 +183,7 @@ function HomePage() {
           </div>
           <div>
             <p className="text-2xl font-bold tabular-nums text-cyan-300 sm:text-3xl">
-              2026 and 2027
+              2027
             </p>
             <p className="mt-1 text-xs text-slate-300 sm:text-sm">
               Latest QS data
@@ -192,7 +196,7 @@ function HomePage() {
           {[
             {
               title: "Custom weights",
-              body: "Choose which factors matter most to you — reputation, research, international mix — and rerank instantly.",
+              body: "Choose which factors matter most to you: reputation, research, international mix, and rerank instantly.",
             },
             {
               title: "Instant search",
@@ -222,18 +226,46 @@ function HomePage() {
 const PAGE_SIZE = 20;
 
 function RankingsPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const validYears = [2023, 2024, 2025, 2026, 2027] as const;
+  type Year = typeof validYears[number];
+
   const [searchInput, setSearchInput] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
-  const [year, setYear] = useState(2027);
-  const [factors, setFactors] = useState<FactorKey[]>([]);
+  const [year, setYear] = useState<Year>(() => {
+    const y = Number(searchParams.get("year"));
+    return (validYears as readonly number[]).includes(y) ? y as Year : 2027;
+  });
+  const [factors, setFactors] = useState<FactorKey[]>(() => {
+    const f = searchParams.get("factors");
+    if (!f) return [];
+    return f.split(",").filter((k): k is FactorKey => k in defaultFactorWeights);
+  });
   const [data, setData] = useState<Record<string, unknown>[]>([]);
   const [loadedYear, setLoadedYear] = useState<number | null>(null);
   const loading = loadedYear !== year;
-  const [country, setCountry] = useState("Global");
+  const [country, setCountry] = useState(() => searchParams.get("country") ?? "Global");
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const [selectedUni, setSelectedUni] = useState<Record<string, unknown> | null>(null);
+  const [compareList, setCompareList] = useState<Record<string, unknown>[]>([]);
+  const [compareOpen, setCompareOpen] = useState(false);
+
+  const pendingUni = useRef(searchParams.get("uni"));
+  const pendingCompare = useRef(searchParams.get("compare"));
 
   useEffect(() => {
-    const file = year === 2027 ? "27QS.json" : "26QS.json";
+    const params = new URLSearchParams();
+    if (year !== 2027) params.set("year", String(year));
+    if (factors.length) params.set("factors", factors.join(","));
+    if (country !== "Global") params.set("country", country);
+    if (selectedUni) params.set("uni", (selectedUni["Institution Name"] as string).trim());
+    if (compareList.length) params.set("compare", compareList.map(u => (u["Institution Name"] as string).trim()).join("|"));
+    setSearchParams(params, { replace: true });
+  }, [year, factors, country, selectedUni, compareList, setSearchParams]);
+
+  useEffect(() => {
+    const file = `${String(year).slice(2)}QS.json`;
     fetch(import.meta.env.BASE_URL + file)
       .then((res) => res.json())
       .then((json) => {
@@ -241,6 +273,33 @@ function RankingsPage() {
         setLoadedYear(year);
       });
   }, [year]);
+
+  useEffect(() => {
+    if (!data.length) return;
+    const norm = (s: string) => s.trim().toLowerCase();
+    const sigWords = (s: string) => s.split(/\W+/).filter(w => w.length > 2);
+    const findUni = (name: string) => {
+      const target = norm(name);
+      const tw = sigWords(target);
+      return (
+        data.find(d => norm(d["Institution Name"] as string) === target) ??
+        data.find(d => { const n = norm(d["Institution Name"] as string); return n.startsWith(target) || target.startsWith(n); }) ??
+        (tw.length >= 3 ? data.find(d => { const dw = sigWords(norm(d["Institution Name"] as string)); return tw.every(w => dw.includes(w)) || dw.every(w => tw.includes(w)); }) : undefined)
+      );
+    };
+    if (pendingUni.current) {
+      const name = pendingUni.current;
+      pendingUni.current = null;
+      const found = findUni(name);
+      if (found) setSelectedUni(found);
+    }
+    if (pendingCompare.current) {
+      const names = pendingCompare.current.split("|");
+      pendingCompare.current = null;
+      const found = names.flatMap(name => { const d = findUni(name); return d ? [d] : []; }).slice(0, 3);
+      if (found.length) setCompareList(found);
+    }
+  }, [data]);
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -305,7 +364,7 @@ function RankingsPage() {
             {`${year}`} Rankings
           </h2>
           <p className="mt-2 text-sm text-slate-300">
-            QS World University Rankings · 1,501 institutions
+            QS World University Rankings · ~1500+ institutions
           </p>
         </div>
         <div>
@@ -313,13 +372,13 @@ function RankingsPage() {
             Select the QS Rankings year:
           </p>
           <div className="mt-2 flex justify-center gap-2 sm:justify-start">
-            {([2026, 2027] as const).map((y) => (
+            {([2023, 2024, 2025, 2026, 2027] as const).map((y) => (
               <button
                 key={y}
                 type="button"
                 onClick={() => {
                   setYear(y);
-                  if (y === 2027) setFactors((f) => f.filter((k) => k !== "isdScore"));
+                  if (y !== 2026) setFactors((f) => f.filter((k) => k !== "isdScore"));
                 }}
                 className={[
                   "inline-flex touch-manipulation items-center rounded-full border px-3.5 py-2 text-xs font-medium transition duration-150 sm:px-4 sm:py-1.5 sm:text-sm",
@@ -548,6 +607,18 @@ function RankingsPage() {
                         : ranking["Overall SCORE"],
                     ) || 0
                   }
+                  prevRank={Number(ranking["Previous Rank"]) || 0}
+                  onClick={() => setSelectedUni(ranking)}
+                  isCompared={compareList.some(u => u["Institution Name"] === ranking["Institution Name"])}
+                  compareDisabled={compareList.length >= 3 && !compareList.some(u => u["Institution Name"] === ranking["Institution Name"])}
+                  onCompare={() => {
+                    const name = ranking["Institution Name"];
+                    if (compareList.some(u => u["Institution Name"] === name)) {
+                      setCompareList(prev => prev.filter(u => u["Institution Name"] !== name));
+                    } else if (compareList.length < 3) {
+                      setCompareList(prev => [...prev, ranking]);
+                    }
+                  }}
                 />
               ))}
               {visibleCount < processed.length && (
@@ -563,6 +634,74 @@ function RankingsPage() {
           )}
         </div>
       </div>
+
+      {compareList.length > 0 && createPortal(
+        <div className="fixed right-0 top-1/2 z-40 -translate-y-1/2">
+          <div className="w-40 overflow-hidden rounded-l-xl border border-r-0 border-white/10 bg-zinc-900/95 shadow-[-6px_0_24px_-4px_rgba(0,0,0,0.5)] backdrop-blur-md">
+            <div className="flex flex-col gap-px px-2 py-2">
+              {compareList.map((uni, i) => (
+                <div
+                  key={uni["Institution Name"] as string}
+                  className="flex items-center gap-1.5 rounded-lg px-2 py-1.5"
+                  style={{ backgroundColor: `${UNI_COLORS[i]}12` }}
+                >
+                  <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: UNI_COLORS[i] }} />
+                  <span className="min-w-0 flex-1 truncate text-[11px] text-slate-300">{uni["Institution Name"] as string}</span>
+                  <button
+                    type="button"
+                    onClick={() => setCompareList(prev => prev.filter(u => u !== uni))}
+                    className="shrink-0 text-slate-600 transition-colors hover:text-slate-200"
+                  >
+                    <svg className="h-2.5 w-2.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" aria-hidden>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              ))}
+              {compareList.length < 3 && (
+                <p className="px-2 py-1 text-[10px] text-slate-700">{3 - compareList.length} slot{3 - compareList.length !== 1 ? "s" : ""} left</p>
+              )}
+            </div>
+            <div className="flex flex-col gap-1 border-t border-white/8 px-2 py-2">
+              <button
+                type="button"
+                onClick={() => setCompareOpen(true)}
+                disabled={compareList.length < 2}
+                className="w-full rounded-lg border border-cyan-400/40 bg-cyan-400/15 py-1.5 text-[11px] font-semibold text-cyan-200 transition hover:bg-cyan-400/20 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Compare {compareList.length}
+              </button>
+              <button
+                type="button"
+                onClick={() => setCompareList([])}
+                className="w-full rounded-lg py-1 text-[11px] text-slate-600 transition hover:text-slate-300"
+              >
+                Clear all
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {selectedUni && (
+        <UniversityModal
+          datum={selectedUni}
+          year={year}
+          factors={factors}
+          baseUrl={import.meta.env.BASE_URL}
+          onClose={() => setSelectedUni(null)}
+        />
+      )}
+      {compareOpen && (
+        <CompareModal
+          unis={compareList}
+          year={year}
+          factors={factors}
+          baseUrl={import.meta.env.BASE_URL}
+          onClose={() => setCompareOpen(false)}
+        />
+      )}
     </section>
   );
 }
